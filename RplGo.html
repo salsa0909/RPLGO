@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Education Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Animations to replace tailwindcss-animate plugin */
+        @keyframes zoomIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .animate-zoom-in { animation: zoomIn 0.2s ease-out forwards; }
+        
+        @keyframes slideUp {
+            from { transform: translateY(2.5rem); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+
+        @keyframes pulse-custom {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .9; transform: scale(1.05); }
+        }
+        .animate-pulse-btn { animation: pulse-custom 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+        /* Print Styles for Certificate */
+        @media print {
+            body * { visibility: hidden; }
+            #printable-certificate, #printable-certificate * { visibility: visible; }
+            #printable-certificate { 
+                position: absolute; left: 0; top: 0; width: 100%; height: 100vh;
+                border: 0 !important;
+                box-shadow: none !important;
+                padding: 2rem !important;
+            }
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-50 flex font-sans text-slate-900 relative">
+
+    <!-- Global Modal -->
+    <div id="modal-container" class="fixed inset-0 bg-black/60 z-[100] hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl animate-zoom-in" id="modal-content">
+            <!-- Modal content injected via JS -->
+        </div>
+    </div>
+
+    <!-- Chat Widget (Floating) -->
+    <div id="chat-widget" class="fixed bottom-6 right-6 z-50 hidden">
+        <!-- FAB Button -->
+        <button id="chat-fab" class="p-4 bg-indigo-700 text-white rounded-full shadow-xl hover:scale-105 transition flex items-center gap-2" onclick="toggleChat(true)">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+            <span class="hidden md:block font-medium">Tanya AI</span>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="hidden w-80 h-[450px] bg-white rounded-2xl shadow-2xl flex-col border border-indigo-100 overflow-hidden animate-slide-up">
+            <div class="p-4 bg-indigo-700 text-white flex justify-between items-center">
+                <span class="font-bold flex items-center gap-2">
+                    <i data-lucide="bot" class="w-5 h-5"></i> AI Assistant
+                </span>
+                <button onclick="toggleChat(false)" class="hover:bg-indigo-600 rounded p-1 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div id="chat-messages" class="flex-1 p-4 bg-slate-50 overflow-y-auto space-y-4">
+                <!-- Messages injected here -->
+            </div>
+            
+            <div class="p-3 bg-white border-t flex gap-2">
+                <input type="text" id="chat-input" placeholder="Ada yang bisa dibantu..." 
+                    class="flex-1 border rounded-lg px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                    onkeypress="if(event.key === 'Enter') handleSendMessage()"
+                />
+                <button onclick="handleSendMessage()" class="p-2 bg-indigo-700 text-white rounded-lg hover:bg-indigo-800 transition">
+                    <i data-lucide="send" class="w-[18px] h-[18px]"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 1: Login -->
+    <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-indigo-900 to-indigo-700 w-full">
+        <div class="bg-white p-10 rounded-3xl shadow-2xl text-center max-w-sm w-full mx-4">
+            <i data-lucide="graduation-cap" class="w-16 h-16 mx-auto text-indigo-700 mb-6"></i>
+            <h1 class="text-3xl font-extrabold mb-2 text-slate-900">Education Pro</h1>
+            <p class="text-slate-500 mb-6">Silakan login untuk memulai sesi belajar Anda.</p>
+            <input type="text" id="login-name" placeholder="Masukkan nama lengkap..." class="w-full px-4 py-3 mb-4 border rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition" />
+            <button onclick="handleLogin()" class="w-full py-3 bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-800 transition">
+                <i data-lucide="log-in" class="w-5 h-5"></i> Masuk Sekarang
+            </button>
+        </div>
+    </div>
+
+    <!-- Screen 2: Profile Setup -->
+    <div id="screen-profile" class="flex-1 hidden items-center justify-center p-6 bg-slate-50 w-full">
+        <div class="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-slate-100">
+            <i data-lucide="shield-check" class="w-12 h-12 mx-auto text-indigo-600 mb-4"></i>
+            <h1 class="text-2xl font-bold mb-2">Verifikasi Identitas</h1>
+            <p class="text-slate-500 mb-6 text-sm">Sistem AI kami memerlukan foto wajah & setengah tubuh (waist-up) untuk validasi asli manusia.</p>
+            <label class="cursor-pointer block p-6 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition">
+                <i data-lucide="camera" class="w-10 h-10 mx-auto text-indigo-400 mb-2"></i>
+                <span class="font-semibold text-indigo-700">Pilih Foto Verifikasi</span>
+                <input type="file" id="photo-upload" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)" />
+            </label>
+        </div>
+    </div>
+
+    <!-- Screen 3: Dashboard -->
+    <div id="screen-dashboard" class="flex-1 hidden p-8 bg-slate-50 w-full">
+        <div class="max-w-6xl mx-auto">
+            <header class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <img id="user-avatar" src="" class="w-16 h-16 rounded-full border-4 border-white shadow-lg object-cover bg-slate-200" alt="Profile" />
+                    <div>
+                        <h1 class="text-2xl font-bold">Halo, <span id="user-name-display"></span></h1>
+                        <p class="text-slate-500 font-medium">Lanjutkan progres belajar Anda hari ini.</p>
+                    </div>
+                </div>
+                <button id="claim-cert-btn" onclick="setScreen('certificate')" class="hidden bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg items-center gap-2 hover:bg-emerald-700 transition animate-pulse-btn">
+                    <i data-lucide="trophy" class="w-5 h-5"></i> Klaim Sertifikat
+                </button>
+            </header>
+            
+            <div id="modules-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6">
+                <!-- Modules injected here via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 4: Module Detail -->
+    <div id="screen-module" class="flex-1 hidden bg-white p-8 max-w-4xl mx-auto md:mt-10 md:rounded-2xl shadow-sm border border-slate-100 w-full">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl md:text-3xl font-bold">Materi Modul <span id="module-title-num"></span></h2>
+            <span id="module-badge-num" class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"></span>
+        </div>
+        <div class="h-64 bg-slate-100 rounded-2xl mb-8 flex items-center justify-center border-2 border-dashed border-slate-300 text-slate-500 font-medium italic">
+            Konten Materi Modul <span id="module-content-num" class="ml-1"></span>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="setScreen('dashboard')" class="px-6 py-4 border-2 border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition">Kembali</button>
+            <button onclick="completeModule()" class="flex-1 py-4 bg-indigo-700 text-white rounded-xl font-bold hover:bg-indigo-800 transition">Saya Sudah Selesai Membaca</button>
+        </div>
+    </div>
+
+    <!-- Screen 5: Certificate -->
+    <div id="screen-certificate" class="flex-1 hidden items-center justify-center bg-slate-200 p-4 md:p-8 w-full">
+        <div id="printable-certificate" class="bg-white p-10 md:p-16 shadow-2xl rounded-sm border-[16px] md:border-[20px] border-double border-indigo-950 text-center max-w-3xl w-full relative overflow-hidden">
+            <div class="absolute top-4 left-4 right-4 bottom-4 border-2 border-indigo-200 pointer-events-none"></div>
+            
+            <div class="relative z-10">
+                <h3 class="text-indigo-950 font-serif tracking-[0.4em] text-xs md:text-sm uppercase mb-4">Certificate of Completion</h3>
+                <h1 class="text-3xl md:text-6xl font-serif font-bold text-indigo-950 mb-8 tracking-tight">SERTIFIKAT KELULUSAN</h1>
+                
+                <div class="flex justify-center mb-8">
+                    <div class="w-20 h-20 md:w-24 md:h-24 border-4 border-amber-500 rounded-full flex items-center justify-center text-amber-500">
+                        <i data-lucide="award" class="w-10 h-10 md:w-12 md:h-12"></i>
+                    </div>
+                </div>
+
+                <p class="text-lg md:text-xl text-slate-600 mt-4 mb-2 font-serif italic">Diberikan kepada:</p>
+                <h2 id="cert-user-name" class="text-3xl md:text-4xl font-bold text-indigo-800 font-serif border-b border-slate-300 inline-block px-4 md:px-10 py-2"></h2>
+                
+                <p class="mt-8 text-base md:text-lg text-slate-700 max-w-xl mx-auto leading-relaxed font-serif italic">
+                    Atas keberhasilan menyelesaikan 10 Modul Pendidikan Profesional dengan predikat terbaik dan komitmen akademik yang tinggi.
+                </p>
+
+                <div class="mt-12 md:mt-16 flex flex-col items-center">
+                    <div class="w-48 md:w-64 border-b-2 border-slate-800 mb-2"></div>
+                    <p class="font-bold text-slate-900 uppercase tracking-widest text-base md:text-lg">Asnah, S.Pd., M.Si.</p>
+                    <p class="text-xs md:text-sm text-slate-600 uppercase tracking-widest mt-1 font-semibold">Kepala Sekolah</p>
+                </div>
+
+                <div class="mt-12 flex flex-col sm:flex-row justify-center gap-4 no-print">
+                    <button onclick="window.print()" class="px-8 py-3 bg-indigo-950 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-slate-900 transition shadow-lg">
+                        <i data-lucide="download" class="w-[18px] h-[18px]"></i> Unduh PDF Sertifikat
+                    </button>
+                    <button onclick="setScreen('dashboard')" class="px-8 py-3 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition">Kembali</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State Management
+        let state = {
+            screen: 'login',
+            user: { name: '', email: 'user@example.com', avatar: null },
+            isGeminiOpen: false,
+            activeModule: null,
+            completedModules: [],
+            messages: [{ 
+                id: 1, 
+                text: "Halo! Selamat datang di Education Pro. Saya asisten AI Anda. Ada yang bisa saya bantu agar proses belajar Anda lebih nyaman hari ini?", 
+                sender: 'ai' 
+            }],
+            modalOnConfirm: null
+        };
+
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Screen Navigation Logic
+        function setScreen(newScreen) {
+            state.screen = newScreen;
+            
+            // Hide all screens
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-profile').classList.add('hidden');
+            document.getElementById('screen-dashboard').classList.add('hidden');
+            document.getElementById('screen-module').classList.add('hidden');
+            document.getElementById('screen-certificate').classList.add('hidden');
+            
+            // Show target screen
+            document.getElementById(`screen-${newScreen}`).classList.remove('hidden');
+            
+            // Handle Chat Widget Visibility
+            const chatWidget = document.getElementById('chat-widget');
+            if(newScreen === 'dashboard' || newScreen === 'module') {
+                chatWidget.classList.remove('hidden');
+                chatWidget.classList.add('flex');
+            } else {
+                chatWidget.classList.add('hidden');
+                chatWidget.classList.remove('flex');
+                toggleChat(false); // close chat window if switching away
+            }
+
+            // Screen Specific Logic
+            if(newScreen === 'dashboard') {
+                document.getElementById('user-name-display').innerText = state.user.name;
+                document.getElementById('user-avatar').src = state.user.avatar;
+                renderDashboard();
+            }
+            if(newScreen === 'certificate') {
+                document.getElementById('cert-user-name').innerText = state.user.name;
+            }
+        }
+
+        // Modal Logic
+        function showModal(title, message, type = 'info', onConfirm = null) {
+            const container = document.getElementById('modal-container');
+            const content = document.getElementById('modal-content');
+            state.modalOnConfirm = onConfirm;
+            
+            if (type === 'loading') {
+                content.innerHTML = `
+                    <div class="flex flex-col items-center text-center">
+                        <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-indigo-600 mb-4"></i>
+                        <h3 class="text-xl font-bold mb-2">${title}</h3>
+                        <p class="text-slate-600">${message}</p>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2">${title}</h3>
+                    <p class="text-slate-600 mb-6">${message}</p>
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="handleModalConfirm()" class="px-6 py-2 bg-indigo-700 text-white rounded-lg font-medium hover:bg-indigo-800 transition">Mengerti</button>
+                    </div>
+                `;
+            }
+            
+            container.classList.remove('hidden');
+            container.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById('modal-container').classList.add('hidden');
+            document.getElementById('modal-container').classList.remove('flex');
+            state.modalOnConfirm = null;
+        }
+
+        function handleModalConfirm() {
+            if (state.modalOnConfirm) state.modalOnConfirm();
+            closeModal();
+        }
+
+        // Login Actions
+        function handleLogin() {
+            const nameInput = document.getElementById('login-name').value;
+            if (!nameInput.trim()) {
+                showModal('Input Diperlukan', 'Silakan masukkan nama Anda terlebih dahulu.', 'info');
+                return;
+            }
+            state.user.name = nameInput;
+            setScreen('profile');
+        }
+
+        // Photo Upload Logic (Mock Face Scan)
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showModal('AI Face Scanning...', 'Memindai wajah manusia dalam foto...', 'loading');
+            
+            setTimeout(() => {
+                const isHuman = Math.random() > 0.3; // 70% success rate mock
+                
+                if (!isHuman) {
+                    showModal('Deteksi Gagal', 'Sistem AI tidak mendeteksi wajah manusia yang valid. Pastikan foto jelas dan menunjukkan wajah Anda (bukan anime/ilustrasi).', 'error');
+                    event.target.value = ''; // reset input
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    showModal('Verifikasi Berhasil', 'Foto Anda valid. Selamat datang, mari kita mulai belajar!', 'info', () => {
+                        state.user.avatar = e.target.result;
+                        setScreen('dashboard');
+                    });
+                };
+                reader.readAsDataURL(file);
+            }, 2500);
+        }
+
+        // Dashboard Logic
+        function renderDashboard() {
+            const grid = document.getElementById('modules-grid');
+            const claimBtn = document.getElementById('claim-cert-btn');
+            
+            grid.innerHTML = '';
+            
+            for (let m = 1; m <= 10; m++) {
+                const isCompleted = state.completedModules.includes(m);
+                
+                let iconHtml = isCompleted 
+                    ? `<div class="p-2 rounded-lg bg-emerald-100 text-emerald-700"><i data-lucide="check" class="w-6 h-6"></i></div>` 
+                    : `<div class="p-2 rounded-lg bg-indigo-100 text-indigo-700"><i data-lucide="book-open" class="w-6 h-6"></i></div>`;
+                    
+                let statusHtml = isCompleted
+                    ? `<span class="text-emerald-600 flex items-center gap-1 font-medium text-sm"><i data-lucide="check-circle" class="w-[14px] h-[14px]"></i> Selesai</span>`
+                    : `<button onclick="openModule(${m})" class="text-indigo-700 font-medium hover:underline text-sm flex items-center gap-1">Mulai Pelajaran <i data-lucide="chevron-right" class="w-[14px] h-[14px]"></i></button>`;
+
+                grid.innerHTML += `
+                    <div class="p-6 rounded-2xl shadow-sm border ${isCompleted ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'}">
+                        <div class="flex justify-between items-start mb-4">
+                            ${iconHtml}
+                        </div>
+                        <h3 class="font-bold text-lg mb-1">Modul ${m}</h3>
+                        ${statusHtml}
+                    </div>
+                `;
+            }
+            
+            if (state.completedModules.length === 10) {
+                claimBtn.classList.remove('hidden');
+                claimBtn.classList.add('flex');
+            } else {
+                claimBtn.classList.add('hidden');
+                claimBtn.classList.remove('flex');
+            }
+
+            lucide.createIcons();
+        }
+
+        // Module Logic
+        function openModule(m) {
+            state.activeModule = m;
+            document.getElementById('module-title-num').innerText = m;
+            document.getElementById('module-badge-num').innerText = `Level $
