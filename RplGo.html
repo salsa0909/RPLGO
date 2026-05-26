@@ -432,7 +432,7 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function handleSendMessage() {
+        async function handleSendMessage() {
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (!text) return;
@@ -440,20 +440,66 @@
             // Add user message
             state.messages.push({ id: Date.now(), text: text, sender: 'user' });
             input.value = '';
+            
+            // Add typing indicator
+            const typingId = Date.now() + 1;
+            state.messages.push({ 
+                id: typingId, 
+                text: '<div class="flex gap-1 items-center h-4 py-1"><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span><span class="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span></div>', 
+                sender: 'ai',
+                isTyping: true 
+            });
             renderChatMessages();
 
-            // Simulate AI typing and responding
-            setTimeout(() => {
-                const responses = [
-                    "Terima kasih atas pertanyaannya. Pastikan Anda membaca modul dengan teliti ya.",
-                    "Saya mengerti. Jika Anda mengalami kesulitan di Modul ini, cobalah ulangi membaca pelan-pelan.",
-                    "Itu pertanyaan yang bagus! Tetap semangat menyelesaikan semua 10 Modul untuk mendapatkan sertifikat."
-                ];
-                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            try {
+                // System prompt to guardrail AI behaviors
+                const systemPrompt = "Anda adalah asisten AI bernama 'Tanya AI' yang ramah dan membantu untuk platform Education Pro. Tugas Anda adalah membantu pengguna memahami konsep, menjawab pertanyaan umum, dan membimbing proses belajar mereka. PENTING: Jika pengguna meminta jawaban langsung dari isi modul, tugas, atau ujian, Anda HARUS menolak dengan sopan dan mendorong mereka untuk membaca dan memecahkan masalah tersebut secara mandiri. Gunakan bahasa Indonesia yang santai, sopan, dan jelas. Jawablah secara ringkas (1-2 paragraf saja) karena ini adalah antarmuka chat berukuran kecil.";
                 
-                state.messages.push({ id: Date.now(), text: randomResponse, sender: 'ai' });
-                renderChatMessages();
-            }, 1000);
+                // Construct history for contextual conversation
+                const contents = state.messages
+                    .filter(m => !m.isTyping) // exclude typing indicators
+                    .map(m => ({
+                        role: m.sender === 'user' ? 'user' : 'model',
+                        parts: [{ text: m.text }]
+                    }));
+
+                const payload = {
+                    contents: contents,
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    }
+                };
+                
+                const apiKey = ""; // API key is handled automatically by Canvas
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+                
+                // Remove typing indicator
+                state.messages = state.messages.filter(m => m.id !== typingId);
+                
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    let aiText = candidate.content.parts[0].text;
+                    // Format basic markdown like bold and line breaks for HTML output
+                    aiText = aiText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+                    state.messages.push({ id: Date.now(), text: aiText, sender: 'ai' });
+                } else {
+                    state.messages.push({ id: Date.now(), text: "Maaf, saya sedang mengalami gangguan. Silakan coba lagi nanti.", sender: 'ai' });
+                }
+            } catch (error) {
+                // Remove typing indicator
+                state.messages = state.messages.filter(m => m.id !== typingId);
+                state.messages.push({ id: Date.now(), text: "Maaf, terjadi kesalahan jaringan. Silakan periksa koneksi internet Anda.", sender: 'ai' });
+            }
+            
+            renderChatMessages();
         }
 
         // Initialize App
